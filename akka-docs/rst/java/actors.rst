@@ -695,6 +695,26 @@ Messages marked with ``NotInfluenceReceiveTimeout`` will not reset the timer. Th
 ``ReceiveTimeout`` should be fired by external inactivity but not influenced by internal activity,
 e.g. scheduled tick messages.
 
+.. _actors-timers-java:
+
+Timers, scheduled messages
+==========================
+
+Messages can be scheduled to be sent at a later point by using the :ref:`scheduler-java` directly,
+but when scheduling periodic or single messages in an actor to itself it's more convenient and safe
+to use the support for named timers. The lifecycle of scheduled messages can be difficult to manage
+when the actor is restarted and that is taken care of by the timers.
+
+.. includecode:: code/jdocs/actor/TimerDocTest.java#timers
+
+Each timer has a key and can be replaced or cancelled. It's guaranteed that a message from the
+previous incarnation of the timer with the same key is not received, even though it might already
+be enqueued in the mailbox when it was cancelled or the new timer was started.
+
+The timers are bound to the lifecycle of the actor that owns it, and thus are cancelled
+automatically when it is restarted or stopped. Note that the ``TimerScheduler`` is not thread-safe, 
+i.e. it must only be used within the actor that owns it.
+
 .. _stopping-actors-java:
 
 Stopping actors

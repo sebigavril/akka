@@ -97,6 +97,7 @@ object MiMa extends AutoPlugin {
     import com.typesafe.tools.mima.core._
 
     val bcIssuesBetween24and25 = Seq(
+      
       // ##22269 GSet as delta-CRDT
       ProblemFilters.exclude[DirectMissingMethodProblem]("akka.cluster.ddata.GSet.this"), // constructor supplied by companion object
         
@@ -1159,6 +1160,14 @@ object MiMa extends AutoPlugin {
         ProblemFilters.exclude[ReversedMissingMethodProblem]("akka.remote.WireFormats#DeployDataOrBuilder.getScopeSerializerId"),
         ProblemFilters.exclude[ReversedMissingMethodProblem]("akka.remote.WireFormats#DeployDataOrBuilder.getScopeManifest")
       )
+// FIXME      
+//      ,
+//      "2.4.18" -> Seq(
+//        // #15733 Timers
+//        ProblemFilters.exclude[DirectMissingMethodProblem]("akka.persistence.fsm.PersistentFSM#Timer.apply"),
+//        ProblemFilters.exclude[DirectMissingMethodProblem]("akka.persistence.fsm.PersistentFSM#Timer.copy"),
+//        ProblemFilters.exclude[DirectMissingMethodProblem]("akka.persistence.fsm.PersistentFSM#Timer.this")
+//      )    
       // make sure that
       //  * this list ends with the latest released version number
       //  * is kept in sync between release-2.4 and master branch
@@ -1188,7 +1197,12 @@ object MiMa extends AutoPlugin {
           ProblemFilters.exclude[InheritedNewAbstractMethodProblem]("akka.stream.Graph.addAttributes"),
           ProblemFilters.exclude[InheritedNewAbstractMethodProblem]("akka.stream.Graph.async")
       ),
-      "2.5.1" -> Seq()
+      "2.5.1" -> Seq(
+        // #15733 Timers
+        ProblemFilters.exclude[DirectMissingMethodProblem]("akka.persistence.fsm.PersistentFSM#Timer.apply"),
+        ProblemFilters.exclude[DirectMissingMethodProblem]("akka.persistence.fsm.PersistentFSM#Timer.copy"),
+        ProblemFilters.exclude[DirectMissingMethodProblem]("akka.persistence.fsm.PersistentFSM#Timer.this")
+      )
     )
 
     val Latest24Filters = Release24Filters.last
