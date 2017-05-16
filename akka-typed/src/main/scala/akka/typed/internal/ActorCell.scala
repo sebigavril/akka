@@ -289,18 +289,7 @@ private[typed] class ActorCell[T](
       }
     }
 
-    try {
-      unscheduleReceiveTimeout()
-      if (!isTerminated(status))
-        process()
-      scheduleReceiveTimeout()
-    } catch {
-      case NonFatal(ex) ⇒ fail(ex)
-      case ie: InterruptedException ⇒
-        fail(ie)
-        if (Debug) println(s"[$thread] $self interrupting due to catching InterruptedException")
-        Thread.currentThread.interrupt()
-    } finally {
+    def afterProcess(): Unit = {
       // also remove the general activation token
       processed += 1
       val prev = unsafe.getAndAddInt(this, statusOffset, -processed)
@@ -325,6 +314,23 @@ private[typed] class ActorCell[T](
         if (activations(again) == 0) executionContext.execute(this)
         else unsafe.getAndAddInt(this, statusOffset, -1)
       }
+    }
+
+    try {
+      unscheduleReceiveTimeout()
+      if (!isTerminated(status))
+        process()
+      scheduleReceiveTimeout()
+      afterProcess()
+    } catch {
+      case NonFatal(ex) ⇒
+        fail(ex)
+        afterProcess()
+      case ie: InterruptedException ⇒
+        fail(ie)
+        if (Debug) println(s"[$thread] $self interrupting due to catching InterruptedException")
+        Thread.currentThread.interrupt()
+        afterProcess()
     }
     if (Debug) println(s"[$thread] $self exiting run(): interrupted=${Thread.currentThread.isInterrupted}")
   }
