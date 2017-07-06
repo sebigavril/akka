@@ -2,8 +2,11 @@ package akka.cluster.pubsub
 
 import akka.testkit._
 import akka.routing.{ ConsistentHashingRoutingLogic, RouterEnvelope }
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.Matchers._
 import org.scalatest.WordSpecLike
-import akka.actor.{ DeadLetter, ActorRef }
+import akka.actor.{ ActorRef, DeadLetter }
+import akka.cluster.pubsub.DistributedPubSubMediator.{ CurrentTopics, GetTopics }
 import com.typesafe.config.ConfigFactory
 
 case class WrappedMessage(msg: String) extends RouterEnvelope {
@@ -21,6 +24,7 @@ object DistributedPubSubMediatorRouterSpec {
     akka.remote.artery.canonical.port=0
     akka.remote.log-remote-lifecycle-events = off
     akka.cluster.pub-sub.routing-logic = $routingLogic
+    akka.cluster.pub-sub.removed-time-to-live = 10ms
   """
 }
 
@@ -90,6 +94,27 @@ trait DistributedPubSubMediatorRouterSpec { this: WordSpecLike with TestKit with
       mediator ! DistributedPubSubMediator.Publish("nowhere", msg, sendOneMessageToEachGroup = true)
       probe.expectMsgClass(classOf[DeadLetter])
       system.eventStream.unsubscribe(probe.ref, classOf[DeadLetter])
+    }
+
+    "remove the underlying topic actors when there are no more subscribers to that topic" in {
+
+      mediator ! DistributedPubSubMediator.Subscribe("topic-1", testActor)
+      expectMsgClass(classOf[DistributedPubSubMediator.SubscribeAck])
+
+      mediator ! GetTopics
+      expectMsgPF() {
+        case CurrentTopics(topics) ⇒ topics should contain("topic-1")
+      }
+
+      mediator ! DistributedPubSubMediator.Unsubscribe("topic-1", testActor)
+      expectMsgClass(classOf[DistributedPubSubMediator.UnsubscribeAck])
+
+      eventually {
+        mediator ! GetTopics
+        expectMsgPF() {
+          case CurrentTopics(topics) ⇒ topics should not contain "topic-1"
+        }
+      }
     }
   }
 }

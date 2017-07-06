@@ -237,7 +237,7 @@ object DistributedPubSubMediator {
     @SerialVersionUID(1L)
     final case class Subscribed(ack: SubscribeAck, subscriber: ActorRef)
     @SerialVersionUID(1L)
-    final case class Unsubscribed(ack: UnsubscribeAck, subscriber: ActorRef)
+    final case class Unsubscribed(ack: UnsubscribeAck, subscriber: ActorRef, numberOfRemainingSubscribers: Int)
     @SerialVersionUID(1L)
     final case class SendToOneSubscriber(msg: Any)
 
@@ -308,7 +308,7 @@ object DistributedPubSubMediator {
         case msg @ Unsubscribe(_, _, ref) ⇒
           context unwatch ref
           remove(ref)
-          context.parent ! Unsubscribed(UnsubscribeAck(msg), sender())
+          context.parent ! Unsubscribed(UnsubscribeAck(msg), sender(), subscribers.size)
         case Terminated(ref) ⇒
           remove(ref)
         case Prune ⇒
@@ -616,8 +616,10 @@ class DistributedPubSubMediator(settings: DistributedPubSubSettings) extends Act
         }
       }
 
-    case msg @ Unsubscribed(ack, ref) ⇒
+    case msg @ Unsubscribed(ack, ref, numberOfRemainingSubscribers) ⇒
       ref ! ack
+      if (numberOfRemainingSubscribers == 0)
+        self ! Remove(ref.path.toStringWithoutAddress)
 
     case Status(otherVersions, isReplyToStatus) ⇒
       // only accept status from known nodes, otherwise old cluster with same address may interact
@@ -813,7 +815,9 @@ class DistributedPubSubMediator(settings: DistributedPubSubSettings) extends Act
     registry foreach {
       case (owner, bucket) ⇒
         val oldRemoved = bucket.content.collect {
-          case (key, ValueHolder(version, None)) if (bucket.version - version > removedTimeToLiveMillis) ⇒ key
+          //todo FIXME
+          case (key, ValueHolder(version, None)) /*if bucket.version - version > removedTimeToLiveMillis*/ ⇒
+            key
         }
         if (oldRemoved.nonEmpty)
           registry += owner → bucket.copy(content = bucket.content -- oldRemoved)
